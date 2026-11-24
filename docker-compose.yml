@@ -1,0 +1,62 @@
+# Ambiente completo para avaliar o serviço: `docker compose up --build`.
+# As portas ficam presas ao 127.0.0.1 — nada é exposto para a rede.
+name: axum-auth-service
+
+services:
+  api:
+    build: .
+    image: axum-auth-service:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENVIRONMENT: production
+      APP_DATABASE__HOST: postgres
+      APP_DATABASE__USERNAME: ${POSTGRES_USER:-auth}
+      APP_DATABASE__PASSWORD: ${POSTGRES_PASSWORD:-auth}
+      APP_DATABASE__DATABASE_NAME: ${POSTGRES_DB:-auth}
+      # Demonstração local: o Postgres do compose não tem TLS, e a chave JWT é
+      # gerada no primeiro boot dentro do volume. Em produção, nenhum dos dois.
+      APP_DATABASE__REQUIRE_SSL: "false"
+      APP_REDIS__URL: redis://redis:6379
+      APP_JWT__PRIVATE_KEY_PATH: /var/lib/auth/keys/jwt-ed25519.pem
+      APP_JWT__GENERATE_KEY_IF_MISSING: "true"
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - jwt-keys:/var/lib/auth/keys
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-auth}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-auth}
+      POSTGRES_DB: ${POSTGRES_DB:-auth}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+  redis:
+    # 7.0+ por causa do `EXPIRE ... NX` do rate limit. Sem persistência: só contadores.
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "127.0.0.1:6379:6379"
+
+volumes:
+  pg-data:
+  jwt-keys:

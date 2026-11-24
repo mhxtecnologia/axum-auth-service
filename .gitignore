@@ -1,0 +1,7 @@
+# Saída de compilação do Cargo
+/target
+
+# Variáveis locais e chaves geradas em desenvolvimento
+.env
+/keys
+*.pem

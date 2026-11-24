@@ -1,0 +1,15 @@
+# Desenvolvimento local: credenciais do docker-compose e chave JWT gerada na hora.
+database:
+  host: 127.0.0.1
+  password: auth
+
+redis:
+  url: redis://127.0.0.1:6379
+
+jwt:
+  private_key_path: keys/jwt-ed25519.pem
+  generate_key_if_missing: true
+
+telemetry:
+  log_format: pretty
+  log_level: info,axum_auth_service=debug,tower_http=debug

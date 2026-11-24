@@ -1,0 +1,59 @@
+[package]
+name = "axum-auth-service"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+description = "Authentication service in Rust: Argon2id passwords, Ed25519-signed JWTs with JWKS, rotating refresh tokens with reuse detection"
+license = "MIT"
+repository = "https://github.com/mhxtecnologia/axum-auth-service"
+readme = "README.md"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "axum-auth-service"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+argon2 = { version = "0.5", features = ["std"] }
+axum = { version = "0.8", features = ["macros"] }
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+config = { version = "0.15", default-features = false, features = ["yaml"] }
+ed25519-dalek = { version = "2", features = ["pkcs8", "pem"] }
+getrandom = "0.3"
+redis = { version = "0.32", default-features = false, features = ["tokio-comp", "connection-manager"] }
+secrecy = { version = "0.10", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "macros",
+] }
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "time"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "request-id"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
+utoipa = { version = "5", features = ["uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
+uuid = { version = "1", features = ["v4", "v7", "serde"] }
+
+[dev-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+
+# Binário de release menor: LTO completo e sem símbolos de debug.
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

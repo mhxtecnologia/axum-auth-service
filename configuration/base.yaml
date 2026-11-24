@@ -1,0 +1,43 @@
+# Valores comuns a todos os ambientes. Segredos não ficam aqui: venha por
+# local.yaml (só desenvolvimento) ou por variáveis APP_* em produção.
+application:
+  host: 127.0.0.1
+  port: 8080
+
+database:
+  host: localhost
+  port: 5432
+  username: auth
+  database_name: auth
+  require_ssl: false
+  max_connections: 10
+  run_migrations: true
+
+redis:
+  key_prefix: "auth:"
+
+jwt:
+  issuer: axum-auth-service
+  audience: axum-auth-service-clients
+  # Tokens de acesso curtos: são stateless e não podem ser revogados antes de expirar.
+  access_token_ttl_seconds: 900
+  generate_key_if_missing: false
+
+refresh_token:
+  ttl_seconds: 2592000 # 30 dias
+
+# Parâmetros mínimos recomendados pela OWASP para Argon2id (19 MiB, t=2, p=1).
+password:
+  memory_kib: 19456
+  iterations: 2
+  parallelism: 1
+
+rate_limit:
+  login_max_attempts_per_email: 5
+  login_max_attempts_per_ip: 20
+  window_seconds: 900
+  trust_x_forwarded_for: false
+
+telemetry:
+  log_format: json
+  log_level: info

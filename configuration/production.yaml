@@ -1,0 +1,11 @@
+# Produção: escuta em todas as interfaces e exige TLS no Postgres.
+# Senha do banco, URL do Redis e chave JWT chegam por variáveis APP_*.
+application:
+  host: 0.0.0.0
+
+database:
+  require_ssl: true
+
+telemetry:
+  log_format: json
+  log_level: info
