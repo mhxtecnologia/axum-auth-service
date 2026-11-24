@@ -1,0 +1,93 @@
+# Integração contínua: formatação, clippy sem warnings, testes de integração
+# contra Postgres e Redis reais (services do Actions) e build + smoke test da
+# imagem Docker com o docker-compose.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  check:
+    name: Clippy + tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: auth
+          POSTGRES_PASSWORD: auth
+          POSTGRES_DB: auth
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U auth -d auth"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  docker:
+    name: Docker image + smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: axum-auth-service:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start the stack
+        run: docker compose up -d --no-build --wait
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          base=http://127.0.0.1:8080
+          for _ in $(seq 1 30); do
+            curl -fsS "$base/health/ready" && break
+            sleep 1
+          done
+          curl -fsS "$base/health/ready"
+          body='{"email":"smoke@example.com","password":"correct horse battery staple"}'
+          curl -fsS -X POST "$base/auth/register" -H 'content-type: application/json' -d "$body"
+          curl -fsS -X POST "$base/auth/login" -H 'content-type: application/json' -d "$body" \
+            | grep -q '"access_token"'
+          curl -fsS "$base/.well-known/jwks.json" | grep -q '"Ed25519"'
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Stop the stack
+        if: always()
+        run: docker compose down
